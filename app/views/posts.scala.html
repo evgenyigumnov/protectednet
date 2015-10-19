@@ -1,0 +1,48 @@
+@()(implicit messages: Messages)
+
+
+<!DOCTYPE html>
+
+<!-- 
+# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+-->
+
+<div style="display : none ;" ng-style="{'display':postShow}">
+    <div class="panel panel-default" >
+        <div class="panel-heading">
+            <h3 class="panel-title">@Messages("posts.title")</h3>
+        </div>
+        <div class="panel-body">
+            <form ng-model="post">
+                <div class="form-group">
+                    <textarea ng-model="post.body" class="form-control" ng-change="change()" value="" placeholder="@Messages("post.add.body")"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <button ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="add()">@Messages("post.add.submit")</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        @Messages("attache.image")<input id="file" name="file" type="file">
+                    </div>
+                </div>
+            </form>
+        </div>
+        <table class="table table-striped">
+            <tbody>
+                <tr ng-repeat="p in posts">
+                    <td>
+                        <u>{{p.authorId}}</u> <i class="pull-right">{{p.publishDate|date:'yyyy-MM-dd HH:mm:ss'}}</i>
+
+                        <pre>{{p.body}}</pre>
+                        <img ng-show="p.image != 'undefined'" data-ng-src="{{p.image}}"/>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <button ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="loadOlder()">
+            v</button>
+
+    </div>
+</div>

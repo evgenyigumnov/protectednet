@@ -1,0 +1,22 @@
+body {
+    padding-top: 170px;
+}
+
+#sidebar {
+    padding-top: 10px;
+
+}
+
+
+@media (min-width: 768px) {
+    body {
+        padding-top: 70px;
+
+    }
+    #sidebar {
+        padding-top: 0px;
+
+    }
+
+
+}

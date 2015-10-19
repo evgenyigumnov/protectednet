@@ -1,0 +1,34 @@
+@()(implicit messages: Messages)
+
+
+<!DOCTYPE html>
+
+<!-- 
+# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+-->
+
+<div>
+    <div class="panel panel-default" >
+        <div class="panel-heading">
+            <h3 class="panel-title">@Messages("admin.title")</h3>
+        </div>
+        <div class="panel-body">
+
+            <table class="table table-striped">
+                <tbody>
+                    <tr ng-repeat="f in friends | orderBy:'+isActive' ">
+                        <td>{{f.id}}</td>
+                        <td>
+                            <div class="form-group">
+                                <button ng-hide="f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="activate(f)">@Messages("admin.activate")</button>
+                                <button ng-hide="!f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="deactivate(f)">@Messages("admin.deactivate")</button>
+                            </div>
+
+
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
