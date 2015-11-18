@@ -2,10 +2,20 @@
 
 
 <!DOCTYPE html>
-
-
-<!-- 
-# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+<!--
+    #    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com
+    #
+    #     This program is free software: you can redistribute it and/or  modify
+    #    it under the terms of the GNU Affero General Public License, version 3,
+    #    as published by the Free Software Foundation.
+    #
+    #    This program is distributed in the hope that it will be useful,
+    #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    #    GNU Affero General Public License for more details.
+    #
+    #    You should have received a copy of the GNU Affero General Public License
+    #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 <div style="display: none;" ng-style="{'display':friendShow}">
@@ -18,7 +28,9 @@
             <table class="table table-striped">
                 <tbody>
                     <tr ng-repeat="f in friends">
-                        <td>{{f.id}}</td>
+                        <td>{{f.id}} <a href="#/messages/{{f.id}}">
+                            <i ng-if="login.id != f.id" tooltip="@Messages("message.send")" class="glyphicon glyphicon-envelope"></i></a>
+                        </td>
                     </tr>
                 </tbody>
             </table>

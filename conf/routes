@@ -1,28 +1,50 @@
-# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
 # Routes
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
 # Home page
-GET         /modal/register                                   io.protectednet.controllers.Application.register
-GET         /part/admin                                       io.protectednet.controllers.Application.admin
-GET         /part/redirect                                    io.protectednet.controllers.Application.redirect
-GET         /part/messages                                    io.protectednet.controllers.Application.messages
-GET         /part/posts                                       io.protectednet.controllers.Application.posts
-GET         /part/friends                                     io.protectednet.controllers.Application.friends
-GET         /rest/user/:id/:networkId                         io.protectednet.controllers.Application.findUser(id:String, networkId: String)
-GET         /rest/network/:networkId                          io.protectednet.controllers.Application.findNetwork(networkId: String)
-PUT         /rest/user                                        io.protectednet.controllers.Application.updateUser(sign: String, networkId: String)
-POST        /rest/user                                        io.protectednet.controllers.Application.addUser(createNetwork: Boolean ?=false)
-GET         /rest/post/:userId/:networkId/:signature          io.protectednet.controllers.Application.findPosts(userId:String, networkId: String,signature: String,  fromDate: Long ?= 0)
-POST        /rest/post/:signature                             io.protectednet.controllers.Application.addPost(signature: String)
-GET         /rest/friend/:userId/:networkId/:signature        io.protectednet.controllers.Application.findFriends(userId:String, networkId:String, signature: String, all: Boolean ?=false)
+GET         /modal/register                                                                io.protectednet.controllers.Application.register
+GET         /part/admin                                                                    io.protectednet.controllers.Application.admin
+GET         /part/redirect                                                                 io.protectednet.controllers.Application.redirect
+GET         /part/messages                                                                 io.protectednet.controllers.Application.messages
+GET         /part/posts                                                                    io.protectednet.controllers.Application.posts
+GET         /part/friends                                                                  io.protectednet.controllers.Application.friends
 
-GET         /message/:id                                      io.protectednet.controllers.Application.getMessage(id:String)
+GET         /rest/user/:id/:networkId                                                      io.protectednet.controllers.Application.findUser(id:String, networkId: String)
+GET         /rest/network/:networkId                                                       io.protectednet.controllers.Application.findNetwork(networkId: String)
+PUT         /rest/user                                                                     io.protectednet.controllers.Application.updateUser(sign: String, networkId: String)
+POST        /rest/user                                                                     io.protectednet.controllers.Application.addUser(createNetwork: Boolean ?=false)
+
+GET         /rest/post/:userId/:networkId/:signature                                       io.protectednet.controllers.Application.findPosts(userId:String, networkId: String,signature: String,  fromDate: Long ?= 0)
+POST        /rest/post/:signature                                                          io.protectednet.controllers.Application.addPost(signature: String)
+GET         /rest/postimage/:userId/:authorId/:publishDate/:networkId/:signature           io.protectednet.controllers.Application.findPostImage(userId:String, authorId:String, publishDate: Long, networkId: String,signature: String)
+GET         /rest/postfile/:userId/:authorId/:publishDate/:networkId/:signature            io.protectednet.controllers.Application.findPostFile(userId:String, authorId:String, publishDate: Long, networkId: String,signature: String)
+
+
+POST        /rest/message/:signature                                                       io.protectednet.controllers.MessagesController.addMessage(signature: String)
+GET         /rest/message/:userId/:networkId/:friendId/:signature                          io.protectednet.controllers.MessagesController.findMessages(userId:String, networkId: String, friendId:String, signature: String,  fromDate: Long ?= 0)
+GET         /rest/messageimage/:userId/:friendId/:publishDate/:networkId/:signature        io.protectednet.controllers.MessagesController.findMessageImage(userId:String, friendId:String, publishDate: Long, networkId: String,signature: String)
+GET         /rest/messagefile/:userId/:friendId/:publishDate/:networkId/:signature         io.protectednet.controllers.MessagesController.findMessageFile(userId:String, friendId:String, publishDate: Long, networkId: String,signature: String)
+
+GET         /rest/dialog/:userId/:networkId/:signature                                     io.protectednet.controllers.MessagesController.findDialogs(userId:String, networkId: String,  signature: String)
+
+GET         /websocket/changeevent/:networkId/:userId/:sign                                io.protectednet.controllers.MessagesController.socket(networkId: String, userId: String, sign: String)
+
+
+GET         /rest/friend/:userId/:networkId/:signature                                     io.protectednet.controllers.Application.findFriends(userId:String, networkId:String, signature: String, all: Boolean ?=false)
+
+
+
+
+
+GET         /locale/:id                                                                    io.protectednet.controllers.Application.getMessage(id:String)
+
+
+
 
 
 # Map static resources from the /public folder to the /assets URL path
-GET         /assets/*file                                     controllers.Assets.versioned(path="/public", file: Asset)
+GET         /assets/*file                                                                  controllers.Assets.versioned(path="/public", file: Asset)
 
-GET         /:network                                         io.protectednet.controllers.Application.index(network:String,lang: String ?="default")
-GET         /                                                 io.protectednet.controllers.Application.indexEmpty(lang: String ?="default")
+GET         /:network                                                                      io.protectednet.controllers.Application.index(network:String,lang: String ?="default")
+GET         /                                                                              io.protectednet.controllers.Application.indexEmpty(lang: String ?="default")

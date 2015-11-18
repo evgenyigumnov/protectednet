@@ -2,9 +2,20 @@
 
 
 <!DOCTYPE html>
-
-<!-- 
-# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+<!--
+    #    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com
+    #
+    #     This program is free software: you can redistribute it and/or  modify
+    #    it under the terms of the GNU Affero General Public License, version 3,
+    #    as published by the Free Software Foundation.
+    #
+    #    This program is distributed in the hope that it will be useful,
+    #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    #    GNU Affero General Public License for more details.
+    #
+    #    You should have received a copy of the GNU Affero General Public License
+    #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 <div style="display : none ;" ng-style="{'display':postShow}">
@@ -13,18 +24,21 @@
             <h3 class="panel-title">@Messages("posts.title")</h3>
         </div>
         <div class="panel-body">
-            <form ng-model="post">
+            <form ng-model="post" id="form" name="form">
                 <div class="form-group">
                     <textarea ng-model="post.body" class="form-control" ng-change="change()" value="" placeholder="@Messages("post.add.body")"></textarea>
                 </div>
                 <div class="row">
-                    <div class="col-md-8">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <button ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="add()">@Messages("post.add.submit")</button>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        @Messages("attache.image")<input id="file" name="file" type="file">
+                        @Messages("attache.image")<input id="image" name="image" ng-model="image" type="file">
+                    </div>
+                    <div class="col-md-4">
+                        @Messages("attache.file")<input id="file" name="file" ng-model="file" type="file">
                     </div>
                 </div>
             </form>
@@ -33,15 +47,20 @@
             <tbody>
                 <tr ng-repeat="p in posts">
                     <td>
-                        <u>{{p.authorId}}</u> <i class="pull-right">{{p.publishDate|date:'yyyy-MM-dd HH:mm:ss'}}</i>
+                        <u>{{p.authorId}}</u>  <a href="#/messages/{{p.authorId}}"><i ng-if="login.id != p.authorId" tooltip="@Messages("message.send")" class="glyphicon glyphicon-envelope"></i></a>
+                        <i class="pull-right">{{p.publishDate|date:'yyyy-MM-dd HH:mm:ss'}}</i>
+                        <span ng-repeat="b in p.bodies"><br>{{b.body}}</span>
+                        <div ng-show="p.image != 'undefined'"><img style="max-width: 100%;height: auto;" data-ng-src="{{p.image}}"/></div>
+                        <div ng-show="p.fileShow">
+                            <a ng-click="download(p.file, p.fileName)">@Messages("download"): {{p.fileName}}</a>
+                        </div>
 
-                        <pre>{{p.body}}</pre>
-                        <img ng-show="p.image != 'undefined'" data-ng-src="{{p.image}}"/>
+
                     </td>
                 </tr>
             </tbody>
         </table>
-        <button ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="loadOlder()">
+        <button ng-class="{'disabled':sendPressed==true}"  ng-show="showNext"  type="button" class="btn btn-primary" ng-click="loadOlder()">
             v</button>
 
     </div>

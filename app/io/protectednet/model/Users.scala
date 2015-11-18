@@ -1,6 +1,19 @@
+/**
+ *    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com igumnov@gmail.com
+ *
+ *    This program is free software: you can redistribute it and/or  modify
+ *    it under the terms of the GNU Affero General Public License, version 3,
+ *    as published by the Free Software Foundation.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU Affero General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Affero General Public License
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 package io.protectednet.model
-
-// # Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
 
 import scala.concurrent.Future
 import com.websudos.phantom.dsl._
@@ -23,7 +36,6 @@ class Users extends CassandraTable[ConcreteUsers, User] {
   object networkId extends StringColumn(this) with PartitionKey[String]
 
   object isActive extends BooleanColumn(this) with Index[Boolean]
-//CREATE INDEX isactive ON users (isactive);
 
 
   def fromRow(row: Row): User = {

@@ -1,45 +1,46 @@
+/**
+ *    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com igumnov@gmail.com
+ *
+ *    This program is free software: you can redistribute it and/or  modify
+ *    it under the terms of the GNU Affero General Public License, version 3,
+ *    as published by the Free Software Foundation.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU Affero General Public License for more details.
+ *
+ *    You should have received a copy of the GNU Affero General Public License
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
 package io.protectednet.controllers
-
-// # Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
-
 
 import java.io.File
 import java.security.{Signature, KeyFactory}
 import java.security.spec.{X509EncodedKeySpec, RSAPublicKeySpec}
-import java.util.{UUID, Date}
+import java.util.{Calendar, Date, Base64}
 
 import com.websudos.phantom.dsl._
 import io.protectednet.model._
-import org.joda.time.DateTime
 import play.api.Play
 import play.api.Play.current
 import play.api.i18n.{Messages, Lang}
 import play.api.mvc._
-import sun.security.util.DerValue
 import scala.concurrent.{Future, Await}
 import play.api.libs.json._
 import io.protectednet.model.JsonFormats._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
 
 class Application extends Controller {
 
 
-  private def selectLang(request: RequestHeader, lang: String = "default"): String = {
-    if (lang == "default") {
-      val cookieLang = request.cookies.get("lang")
-      if (cookieLang.isDefined) cookieLang.get.value
-      else "en"
-    } else lang
-  }
-
   def indexEmpty(lang: String) = Action {
 
     request =>
-      val langSetup: String = selectLang(request, lang)
+      val langSetup: String = Utils.selectLang(request, lang)
 
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
         Lang(langSetup), play.api.Play.current)
@@ -57,7 +58,7 @@ class Application extends Controller {
   def index(network: String, lang: String) = Action {
 
     request =>
-      val langSetup: String = selectLang(request, lang)
+      val langSetup: String = Utils.selectLang(request, lang)
 
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
         Lang(langSetup), play.api.Play.current)
@@ -79,7 +80,7 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.register())
   }
@@ -88,7 +89,7 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.posts())
   }
@@ -98,7 +99,7 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.messages())
   }
@@ -107,9 +108,19 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.friends())
+  }
+
+
+  def bitcoin = Action {
+
+    request =>
+      implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
+        Lang(Utils.selectLang(request)), play.api.Play.current)
+
+      Ok(views.html.bitcoin())
   }
 
 
@@ -117,7 +128,7 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.redirect())
   }
@@ -126,7 +137,7 @@ class Application extends Controller {
 
     request =>
       implicit val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
 
       Ok(views.html.admin())
   }
@@ -155,14 +166,14 @@ class Application extends Controller {
   def getMessage(id: String) = Action {
     request =>
       val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
       Ok(messages.apply(id))
   }
 
   def findUser(id: String, networkId: String) = Action.async {
     request =>
       val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
       MyDatabase.users.getById(id, networkId).map(u => {
         if (u.isDefined) {
           Ok(Json.toJson(u))
@@ -175,7 +186,7 @@ class Application extends Controller {
   def findNetwork(networkId: String) = Action.async {
     request =>
       val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
-        Lang(selectLang(request)), play.api.Play.current)
+        Lang(Utils.selectLang(request)), play.api.Play.current)
       MyDatabase.networks.getById(networkId).map(n => {
         if (n.isDefined) {
           Ok(Json.toJson(n))
@@ -194,15 +205,7 @@ class Application extends Controller {
             if (n.isDefined) {
               MyDatabase.users.getById(n.get.adminId, user.networkId).flatMap(a => {
                 if (a.isDefined) {
-                  val sign = Base64.getDecoder.decode(signature)
-                  val publicKeyDer = Base64.getDecoder.decode(a.get.publicKey)
-                  val spec = new X509EncodedKeySpec(publicKeyDer)
-                  val kf = KeyFactory.getInstance("RSA")
-                  val publicKey = kf.generatePublic(spec)
-                  val signatureTest = Signature.getInstance("SHA1withRSA")
-                  signatureTest.initVerify(publicKey)
-                  signatureTest.update(user.id.getBytes("utf-8"))
-                  if (signatureTest.verify(sign)
+                  if (Utils.checkSign(a.get.publicKey, signature, user.id)
                     && a.get.networkId == user.networkId
                     && !(a.get.id == user.id && !user.isActive)
                   ) {
@@ -243,7 +246,9 @@ class Application extends Controller {
               if (a.isDefined) {
                 Future.successful(BadRequest("Err"))
               } else {
-                val net = new Network(user.networkId, user.id)
+                val blockDate = Calendar.getInstance
+                blockDate.add(Calendar.MONTH, 1200)
+                val net = new Network(user.networkId, user.id, blockDate.getTime)
                 MyDatabase.networks.store(net).flatMap(r => if (r.wasApplied) {
                   MyDatabase.users.store(user).map(r => if (r.wasApplied) {
                     Ok(Json.toJson(user))
@@ -272,6 +277,7 @@ class Application extends Controller {
                   } else {
                     val newUser = new User(user.id, user.privateKey, user.publicKey, user.networkId, false)
                     MyDatabase.users.store(newUser).map(r => if (r.wasApplied) {
+                      Utils.publish(user.networkId, null, null)
                       Ok(Json.toJson(user))
                     } else {
                       BadRequest("Err")
@@ -289,36 +295,111 @@ class Application extends Controller {
 
   }
 
-  def findPosts(userId: String, networkId: String, signature: String, fromDate: Long) = Action.async {
-    MyDatabase.users.getById(userId, networkId).flatMap(u => {
-      val sign = Base64.getDecoder.decode(java.net.URLDecoder.decode(signature, "UTF-8"))
-      val publicKeyDer = Base64.getDecoder.decode(u.get.publicKey)
-      val spec = new X509EncodedKeySpec(publicKeyDer)
-      val kf = KeyFactory.getInstance("RSA")
-      val publicKey = kf.generatePublic(spec)
-      val signatureTest = Signature.getInstance("SHA1withRSA")
-      signatureTest.initVerify(publicKey)
-      signatureTest.update("posts".getBytes("utf-8"))
-      if (signatureTest.verify(sign)) {
-        if (fromDate != 0) {
-          import com.websudos.phantom.dsl._
-          val fd = new DateTime(fromDate)
-          val posts = MyDatabase.posts.getByUserIdAndFromDate(userId, networkId, fd).map { a => Json.toJson(a) }
-          posts.map { post =>
-            Ok(Json.toJson(post))
-          }
+  def findPostImage(userId: String, authorId: String, publishDate: Long, networkId: String, signature: String) = Action.async {
+
+    request =>
+      val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
+        Lang(Utils.selectLang(request)), play.api.Play.current)
+
+      MyDatabase.users.getById(userId, networkId).flatMap(u => {
+        if (Utils.checkSign(u.get.publicKey, signature, "image")) {
+          MyDatabase.posts.getByUserIdAuthorIdPublishDate(userId, authorId, new Date(publishDate), networkId).map(p => {
+            if (p.isDefined) {
+              val post = p.get
+              val imagePost = new Post(post.userId, post.authorId, "", post.publishDate, post.networkId, post.cipher, post.imageBody, "")
+              Ok(Json.toJson(imagePost))
+            } else {
+              BadRequest("Err")
+            }
+          })
         } else {
-          val posts = MyDatabase.posts.getByUserId(userId, networkId).map { a => Json.toJson(a) }
-          posts.map { post =>
-            Ok(Json.toJson(post))
-          }
+          Future.successful(BadRequest("Err"))
 
         }
+      })
+  }
 
+
+  def findPostFile(userId: String, authorId: String, publishDate: Long, networkId: String, signature: String) = Action.async {
+
+    request =>
+      val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
+        Lang(Utils.selectLang(request)), play.api.Play.current)
+
+      MyDatabase.users.getById(userId, networkId).flatMap(u => {
+        if (Utils.checkSign(u.get.publicKey, signature, "file")) {
+          MyDatabase.posts.getByUserIdAuthorIdPublishDate(userId, authorId, new Date(publishDate), networkId).map(p => {
+            if (p.isDefined) {
+              val post = p.get
+              val filePost = new Post(post.userId, post.authorId, "", post.publishDate, post.networkId, post.cipher, "", post.fileBody)
+              Ok(Json.toJson(filePost))
+            } else {
+              BadRequest("Err")
+            }
+          })
+        } else {
+          Future.successful(BadRequest("Err"))
+
+        }
+      })
+  }
+
+  def findPosts(userId: String, networkId: String, signature: String, fromDate: Long) = Action.async {
+    request =>
+      val messages: Messages = play.api.i18n.Messages.Implicits.applicationMessages(
+        Lang(Utils.selectLang(request)), play.api.Play.current)
+
+
+      MyDatabase.networks.getById(networkId).flatMap(network => if (network.isDefined) {
+        if (network.get.blockDate.getTime > (new Date).getTime) {
+          MyDatabase.users.getById(userId, networkId).flatMap(u => {
+            if (Utils.checkSign(u.get.publicKey, signature, "posts")) {
+              if (fromDate != 0) {
+                import com.websudos.phantom.dsl._
+                val fd = new Date(fromDate)
+                val posts = MyDatabase.posts.getByUserIdAndFromDate(userId, networkId, fd).map(post => {
+                  val a = post.map(post => {
+                    val image = if (post.imageBody != "") "image"
+                    else ""
+                    val file = if (post.fileBody != "") "file"
+                    else ""
+                    new Post(post.userId, post.authorId, post.body, post.publishDate, post.networkId, post.cipher, image, file)
+                  })
+                  Json.toJson(a)
+                })
+                posts.map { post =>
+                  Ok(Json.toJson(post))
+                }
+              } else {
+                val posts = MyDatabase.posts.getByUserId(userId, networkId).map(post => {
+                  val a = post.map(post => {
+                    val image = if (post.imageBody != "") "image"
+                    else ""
+                    val file = if (post.fileBody != "") "file"
+                    else ""
+                    new Post(post.userId, post.authorId, post.body, post.publishDate, post.networkId, post.cipher, image, file)
+                  })
+                  Json.toJson(a)
+                })
+                posts.map { post =>
+                  Ok(Json.toJson(post))
+                }
+
+              }
+
+            } else {
+              Future.successful(BadRequest("Err"))
+            }
+          })
+
+        } else {
+          Future.successful(BadRequest(messages.apply("expired.message")))
+        }
       } else {
         Future.successful(BadRequest("Err"))
-      }
-    })
+      })
+
+
   }
 
   def addPost(signature: String) = Action.async(parse.json) {
@@ -326,17 +407,10 @@ class Application extends Controller {
       request.body.validate[Post].map {
         post => {
           MyDatabase.users.getById(post.authorId, post.networkId).flatMap(u => {
-            val sign = Base64.getDecoder.decode(java.net.URLDecoder.decode(signature, "UTF-8"))
-            val publicKeyDer = Base64.getDecoder.decode(u.get.publicKey)
-            val spec = new X509EncodedKeySpec(publicKeyDer)
-            val kf = KeyFactory.getInstance("RSA")
-            val publicKey = kf.generatePublic(spec)
-            val signatureTest = Signature.getInstance("SHA1withRSA")
-            signatureTest.initVerify(publicKey)
-            signatureTest.update(post.body.getBytes("utf-8"))
-            if (signatureTest.verify(sign) && u.get.isActive) {
+            if (Utils.checkSign(u.get.publicKey, signature, post.body) && u.get.isActive) {
               if (post.userId.equals(post.authorId)) {
-                val newPost = new Post(post.userId, post.authorId, post.body, new DateTime(), post.networkId, post.cipher)
+                val newPost = new Post(post.userId, post.authorId, post.body, new Date(),
+                  post.networkId, post.cipher, post.imageBody, post.fileBody)
                 MyDatabase.posts.store(newPost).map(r => if (r.wasApplied) {
                   Ok(Json.toJson(newPost))
                 } else {
@@ -346,6 +420,7 @@ class Application extends Controller {
                 MyDatabase.users.getById(post.userId, post.networkId).flatMap(r => if (r.isDefined) {
                   if (r.get.isActive) {
                     MyDatabase.posts.store(post).map(r => if (r.wasApplied) {
+                      Utils.publish(post.networkId, null, post.userId)
                       Ok(Json.toJson(post))
                     } else {
                       BadRequest("Err")
@@ -369,15 +444,7 @@ class Application extends Controller {
   def findFriends(userId: String, networkId: String, signature: String, all: Boolean) = Action.async {
 
     MyDatabase.users.getById(userId, networkId).flatMap(u => {
-      val sign = Base64.getDecoder.decode(java.net.URLDecoder.decode(signature, "UTF-8"))
-      val publicKeyDer = Base64.getDecoder.decode(u.get.publicKey)
-      val spec = new X509EncodedKeySpec(publicKeyDer)
-      val kf = KeyFactory.getInstance("RSA")
-      val publicKey = kf.generatePublic(spec)
-      val signatureTest = Signature.getInstance("SHA1withRSA")
-      signatureTest.initVerify(publicKey)
-      signatureTest.update("friends".getBytes("utf-8"))
-      if (signatureTest.verify(sign) && u.get.isActive) {
+      if (Utils.checkSign(u.get.publicKey, signature, "friends") && u.get.isActive) {
 
         if (all) {
           val friends = MyDatabase.users.getByNetworkId(networkId).map { a => Json.toJson(a) }

@@ -14,9 +14,12 @@ libraryDependencies ++= Seq(
 
   "com.websudos" % "phantom-dsl_2.11" % "1.12.2",
 
-    "org.webjars" % "bootstrap" % "3.3.5",
-    "org.webjars" % "angularjs" % "1.4.4",
-    "org.webjars" % "angular-ui-bootstrap" % "0.13.3"
+  "org.webjars" % "bootstrap" % "3.3.5",
+  "org.webjars" % "angularjs" % "1.4.4",
+  "org.webjars" % "angular-ui-bootstrap" % "0.13.3",
+  "org.webjars.bower" % "angular-websocket" % "1.0.14",
+  "com.googlecode.json-simple" % "json-simple" % "1.1.1",
+  "org.apache.commons" % "commons-io" % "1.3.2"
 
 
 )
@@ -26,12 +29,12 @@ resolvers ++= Seq(
   "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases",
   "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/",
   "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
-  "Sonatype repo"                    at "https://oss.sonatype.org/content/groups/scala-tools/",
-  "Sonatype releases"                at "https://oss.sonatype.org/content/repositories/releases",
-  "Sonatype snapshots"               at "https://oss.sonatype.org/content/repositories/snapshots",
-  "Sonatype staging"                 at "http://oss.sonatype.org/content/repositories/staging",
-  "Java.net Maven2 Repository"       at "http://download.java.net/maven/2/",
-  "Twitter Repository"               at "http://maven.twttr.com",
+  "Sonatype repo" at "https://oss.sonatype.org/content/groups/scala-tools/",
+  "Sonatype releases" at "https://oss.sonatype.org/content/repositories/releases",
+  "Sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+  "Sonatype staging" at "http://oss.sonatype.org/content/repositories/staging",
+  "Java.net Maven2 Repository" at "http://download.java.net/maven/2/",
+  "Twitter Repository" at "http://maven.twttr.com",
   Resolver.bintrayRepo("websudos", "oss-releases")
 )
 // Play provides two styles of routers, one expects its actions to be injected, the

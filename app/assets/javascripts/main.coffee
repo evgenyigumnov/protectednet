@@ -1,10 +1,25 @@
-# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+#    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com igumnov@gmail.com
+#
+#     This program is free software: you can redistribute it and/or  modify
+#    it under the terms of the GNU Affero General Public License, version 3,
+#    as published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 login = null
 api = null
 network = null
+wsNotification = null
+wsNotificationMessages = false
+wsNotificationPosts = false
 
 class ApiManager
-  constructor: (@Friend, @User, @PostAdd, @q, @friends = [], @publicKeys = []) ->
+  constructor: (@Friend, @User, @PostAdd, @MessageAdd, @q, @friends = [], @publicKeys = []) ->
 
   getUserObject: (id, networkId, password = '') ->
     User = @User
@@ -27,8 +42,49 @@ class ApiManager
       )
     )
 
-  postToFriend: (fromId, friendId, body, created) ->
-    post = new PostObject(friendId, fromId, body, created)
+  messageToFriend: (fromId, friendId, body, created, image, file) ->
+    post = new MessageObject(friendId, fromId, fromId, body, created, undefined, image, file)
+    friend = new UserObject(friendId, '')
+    PostAdd = @MessageAdd
+    @User.get(
+      {
+        userId: friendId
+        networkId: network
+      }
+      (data) ->
+        friend.setPublicKeyBase64(data.publicKey)
+        cipherBase64 = post.getCipherBase64(friend.publicKey)
+        bodyBase64 = post.getBodyBase64()
+        md = forge.md.sha256.create()
+        md.update(bodyBase64, 'utf8')
+        signature = forge.util.encode64(login.privateKey.sign(md))
+        imageBase64 = ''
+        fileBase64 = ''
+        if(post.imageBody != undefined )
+          imageBase64 = post.getImageBodyBase64()
+        if(post.fileBody != undefined )
+          fileBase64 = post.getFileBodyBase64()
+        PostAdd.add(
+          {sign: window.encodeURIComponent(signature)}
+          {
+            userId: friendId
+            authorId: fromId
+            friendId: fromId
+            publishDate: post.publishDate
+            body: bodyBase64
+            imageBody: imageBase64
+            fileBody: fileBase64
+            networkId: network
+            cipher: cipherBase64
+          }
+          (data) ->
+          (err) -> alert err.data
+        )
+      (err) -> alert err.data
+    )
+
+  postToFriend: (fromId, friendId, body, created, image, file) ->
+    post = new PostObject(friendId, fromId, body, created, undefined, image, file)
     friend = new UserObject(friendId, '')
     PostAdd = @PostAdd
     @User.get(
@@ -40,9 +96,15 @@ class ApiManager
         friend.setPublicKeyBase64(data.publicKey)
         cipherBase64 = post.getCipherBase64(friend.publicKey)
         bodyBase64 = post.getBodyBase64()
-        md = forge.md.sha1.create()
+        md = forge.md.sha256.create()
         md.update(bodyBase64, 'utf8')
         signature = forge.util.encode64(login.privateKey.sign(md))
+        imageBase64 = ''
+        fileBase64 = ''
+        if(post.imageBody != undefined )
+          imageBase64 = post.getImageBodyBase64()
+        if(post.fileBody != undefined )
+          fileBase64 = post.getFileBodyBase64()
         PostAdd.add(
           {sign: window.encodeURIComponent(signature)}
           {
@@ -50,6 +112,8 @@ class ApiManager
             authorId: fromId
             publishDate: post.publishDate
             body: bodyBase64
+            imageBody: imageBase64
+            fileBody: fileBase64
             networkId: network
             cipher: cipherBase64
           }
@@ -60,7 +124,7 @@ class ApiManager
     )
 
   loadFriends: (all = false) ->
-    md = forge.md.sha1.create()
+    md = forge.md.sha256.create()
     md.update("friends", 'utf8')
     signature = forge.util.encode64(login.privateKey.sign(md))
     @Friend.get({
@@ -76,24 +140,26 @@ class ApiManager
 
 
 class PostObject
-  constructor: (@userId, @authorId, @body = '', @publishDate = new Date().getTime(), @cipher='') ->
-    if(@cipher =='')
+  constructor: (@userId, @authorId, @body = '', @publishDate = new Date().getTime(), @cipher = '', @imageBody, @fileBody) ->
+    if(@cipher == '')
       key = forge.random.getBytesSync(32);
       iv = forge.random.getBytesSync(32);
       @cipher = {
-        key:key
-        iv:iv
+        key: key
+        iv: iv
       }
 
   getCipherBase64: (key) ->
-    forge.util.encode64(key.encrypt(forge.util.encodeUtf8(angular.toJson(@cipher)),'RSA-OAEP',{md: forge.md.sha256.create()}))
+    forge.util.encode64(key.encrypt(forge.util.encodeUtf8(angular.toJson(@cipher)), 'RSA-OAEP',
+      {md: forge.md.sha256.create()}))
 
   setCipherBase64: (key, cipher) ->
-    @cipher = angular.fromJson(forge.util.decodeUtf8(key.decrypt(forge.util.decode64(cipher),'RSA-OAEP',{md: forge.md.sha256.create()})))
+    @cipher = angular.fromJson(forge.util.decodeUtf8(key.decrypt(forge.util.decode64(cipher), 'RSA-OAEP',
+      {md: forge.md.sha256.create()})))
 
   getBodyBase64: () ->
     c = forge.cipher.createCipher('AES-CBC', @cipher.key);
-    c.start({iv:  @cipher.iv});
+    c.start({iv: @cipher.iv});
     c.update(forge.util.createBuffer(forge.util.encodeUtf8(@body)));
     c.finish();
     forge.util.encode64(c.output.getBytes())
@@ -107,6 +173,112 @@ class PostObject
     d.update(buffer)
     d.finish()
     @body = forge.util.decodeUtf8(d.output.getBytes())
+
+  getImageBodyBase64: () ->
+    c = forge.cipher.createCipher('AES-CBC', @cipher.key);
+    c.start({iv: @cipher.iv});
+    c.update(forge.util.createBuffer(forge.util.encodeUtf8(@imageBody)));
+    c.finish();
+    forge.util.encode64(c.output.getBytes())
+
+  setImageBodyBase64: (body) ->
+    bodyOriginal = forge.util.decode64(body)
+    buffer = forge.util.createBuffer()
+    buffer.putBytes(bodyOriginal)
+    d = forge.cipher.createDecipher('AES-CBC', @cipher.key)
+    d.start({iv: @cipher.iv})
+    d.update(buffer)
+    d.finish()
+    @imageBody = forge.util.decodeUtf8(d.output.getBytes())
+
+
+  getFileBodyBase64: () ->
+    c = forge.cipher.createCipher('AES-CBC', @cipher.key);
+    c.start({iv: @cipher.iv});
+    c.update(forge.util.createBuffer(forge.util.encodeUtf8(@fileBody)));
+    c.finish();
+    forge.util.encode64(c.output.getBytes())
+
+  setFileBodyBase64: (body) ->
+    bodyOriginal = forge.util.decode64(body)
+    buffer = forge.util.createBuffer()
+    buffer.putBytes(bodyOriginal)
+    d = forge.cipher.createDecipher('AES-CBC', @cipher.key)
+    d.start({iv: @cipher.iv})
+    d.update(buffer)
+    d.finish()
+    @fileBody = forge.util.decodeUtf8(d.output.getBytes())
+
+
+class MessageObject
+  constructor: (@userId, @authorId, @friendId, @body = '', @publishDate = new Date().getTime(), @cipher = '', @imageBody, @fileBody) ->
+    if(@cipher == '')
+      key = forge.random.getBytesSync(32);
+      iv = forge.random.getBytesSync(32);
+      @cipher = {
+        key: key
+        iv: iv
+      }
+
+  getCipherBase64: (key) ->
+    forge.util.encode64(key.encrypt(forge.util.encodeUtf8(angular.toJson(@cipher)), 'RSA-OAEP',
+      {md: forge.md.sha256.create()}))
+
+  setCipherBase64: (key, cipher) ->
+    @cipher = angular.fromJson(forge.util.decodeUtf8(key.decrypt(forge.util.decode64(cipher), 'RSA-OAEP',
+      {md: forge.md.sha256.create()})))
+
+  getBodyBase64: () ->
+    c = forge.cipher.createCipher('AES-CBC', @cipher.key);
+    c.start({iv: @cipher.iv});
+    c.update(forge.util.createBuffer(forge.util.encodeUtf8(@body)));
+    c.finish();
+    forge.util.encode64(c.output.getBytes())
+
+  setBodyBase64: (body) ->
+    bodyOriginal = forge.util.decode64(body)
+    buffer = forge.util.createBuffer()
+    buffer.putBytes(bodyOriginal)
+    d = forge.cipher.createDecipher('AES-CBC', @cipher.key)
+    d.start({iv: @cipher.iv})
+    d.update(buffer)
+    d.finish()
+    @body = forge.util.decodeUtf8(d.output.getBytes())
+
+  getImageBodyBase64: () ->
+    c = forge.cipher.createCipher('AES-CBC', @cipher.key);
+    c.start({iv: @cipher.iv});
+    c.update(forge.util.createBuffer(forge.util.encodeUtf8(@imageBody)));
+    c.finish();
+    forge.util.encode64(c.output.getBytes())
+
+  setImageBodyBase64: (body) ->
+    bodyOriginal = forge.util.decode64(body)
+    buffer = forge.util.createBuffer()
+    buffer.putBytes(bodyOriginal)
+    d = forge.cipher.createDecipher('AES-CBC', @cipher.key)
+    d.start({iv: @cipher.iv})
+    d.update(buffer)
+    d.finish()
+    @imageBody = forge.util.decodeUtf8(d.output.getBytes())
+
+
+  getFileBodyBase64: () ->
+    c = forge.cipher.createCipher('AES-CBC', @cipher.key);
+    c.start({iv: @cipher.iv});
+    c.update(forge.util.createBuffer(forge.util.encodeUtf8(@fileBody)));
+    c.finish();
+    forge.util.encode64(c.output.getBytes())
+
+  setFileBodyBase64: (body) ->
+    bodyOriginal = forge.util.decode64(body)
+    buffer = forge.util.createBuffer()
+    buffer.putBytes(bodyOriginal)
+    d = forge.cipher.createDecipher('AES-CBC', @cipher.key)
+    d.start({iv: @cipher.iv})
+    d.update(buffer)
+    d.finish()
+    @fileBody = forge.util.decodeUtf8(d.output.getBytes())
 
 
 class UserObject
@@ -134,7 +306,7 @@ class UserObject
     @publicKey = forge.pki.publicKeyFromAsn1(forge.asn1.fromDer(forge.util.decode64(key)))
 
 
-app = angular.module 'protectedNetApp', ['ui.bootstrap', 'ngResource', 'ngRoute']
+app = angular.module 'protectedNetApp', ['ui.bootstrap', 'ngResource', 'ngRoute', 'ngWebSocket']
 
 
 app.controller('RedirectCtrl', RedirectCtrl = ($scope, $location, Network) ->
@@ -154,7 +326,14 @@ app.controller('RedirectCtrl', RedirectCtrl = ($scope, $location, Network) ->
         window.location.href = "/"
     )
 )
-app.controller('AdminCtrl', AdminCtrl = ($scope, $location, UserAdd) ->
+app.controller('AdminCtrl', AdminCtrl = ($scope, $modal, $location, UserAdd, Network) ->
+    Network.get(
+      {networkId: network}
+      (data) ->
+        $scope.network = data
+    )
+    api.mainScope.newMembers = false;
+    $scope.login = login
     $scope.reloadFriends = () ->
       api.loadFriends(true).then((friends) -> $scope.friends = friends)
     if(login == null)
@@ -163,9 +342,8 @@ app.controller('AdminCtrl', AdminCtrl = ($scope, $location, UserAdd) ->
       $scope.reloadFriends()
 
     $scope.activate = (member) ->
-      console.log(member)
       member.isActive = true
-      md = forge.md.sha1.create()
+      md = forge.md.sha256.create()
       md.update(member.id, 'utf8')
       signature = forge.util.encode64(login.privateKey.sign(md))
       UserAdd.update(
@@ -179,9 +357,8 @@ app.controller('AdminCtrl', AdminCtrl = ($scope, $location, UserAdd) ->
       )
 
     $scope.deactivate = (member) ->
-      console.log(member)
       member.isActive = false
-      md = forge.md.sha1.create()
+      md = forge.md.sha256.create()
       md.update(member.id, 'utf8')
       signature = forge.util.encode64(login.privateKey.sign(md))
       UserAdd.update(
@@ -193,8 +370,269 @@ app.controller('AdminCtrl', AdminCtrl = ($scope, $location, UserAdd) ->
         (data) -> $scope.reloadFriends()
         (err) -> $scope.reloadFriends()
       )
+    $scope.pay = () ->
+      modalInstance = $modal.open({
+        templateUrl: '/part/bitcoin'
+        controller: 'BitcoinModalCtrl'
+      })
 )
-app.controller('MessageCtrl', MessageCtrl = ($scope) ->
+app.controller('BitcoinModalCtrl', BitcoinModalCtrl = ($scope, $modalInstance, Bitcoin) ->
+    $scope.hide = false
+    Bitcoin.get(
+      {networkId: network}
+      (data) ->
+        $scope.address = data.address
+        $scope.hide = true
+      (err) ->
+        alert(err.data)
+    )
+    $scope.close =  () ->
+      $modalInstance.dismiss('cancel')
+
+
+)
+app.controller('MessageCtrl',
+  MessageCtrl = ($scope, $routeParams, MessageAdd, MessageGet, MessageFile, MessageImage, Dialogs, $q) ->
+    $scope.showNext = false
+    api.messageScope = $scope
+    api.mainScope.newMessages = false;
+
+    $scope.message = {
+      body: ""
+    }
+
+
+    $scope.messageToId = $routeParams.toId;
+
+
+    $scope.messages = []
+    $scope.lastEntryDate = 0
+    $scope.loadOlder = () ->
+      $scope.loadDialogs()
+      $scope.loadPosts()
+
+    $scope.reloadPosts = () ->
+      if($scope.messageToId != undefined)
+        $scope.messages = []
+        $scope.lastEntryDate = 0
+        $scope.loadPosts()
+
+
+    $scope.download = (file, fileName) ->
+      link = document.createElement("a");
+      link.download = fileName;
+      link.href = file;
+      link.click();
+
+    $scope.loadDialogs = () ->
+      md = forge.md.sha256.create()
+      md.update("dialogs", 'utf8')
+      signature = forge.util.encode64(login.privateKey.sign(md))
+      Dialogs.get({
+          userId: login.id
+          networkId: network
+          sign: window.encodeURIComponent(signature)
+        }
+        (data) ->
+          $scope.dialogs = data
+          if(data.length == 0)
+            api.loadFriends().then((friends) ->
+              for friend,i in friends
+                if(friend.id != login.id)
+                  $scope.dialogs.push({friendId: friend.id})
+              if($scope.messageToId == undefined )
+                $scope.messageToId = $scope.dialogs[0].friendId
+                $scope.reloadPosts()
+            )
+          else
+            if($scope.messageToId == undefined )
+              $scope.messageToId = $scope.dialogs[0].friendId
+              $scope.reloadPosts()
+      )
+
+    if(!wsNotificationMessages)
+      wsNotification.onMessage((msg) ->
+        notification = JSON.parse(msg.data)
+        if(notification.fromId == api.messageScope.messageToId)
+          api.messageScope.loadPosts(true)
+          api.messageScope.loadDialogs()
+        else
+          api.messageScope.loadDialogs()
+      )
+      wsNotificationMessages = true
+
+
+    $scope.loadPosts = (begin) ->
+      if(begin == undefined)
+        lastEntryDate = $scope.lastEntryDate
+      else
+        lastEntryDate = 0
+      md = forge.md.sha256.create()
+      md.update("messages", 'utf8')
+      signature = forge.util.encode64(login.privateKey.sign(md))
+      MessageGet.get({
+          userId: login.id
+          networkId: network
+          friendId: $scope.messageToId
+          sign: window.encodeURIComponent(signature)
+          fromDate: lastEntryDate
+        }
+        (data) ->
+          if(begin == undefined)
+            if(data.length == 10)
+              $scope.showNext = "true"
+            else
+              $scope.showNext = false
+            $scope.messages = [$scope.messages, data].reduce (a, b) ->
+              a.concat b
+          else
+            $scope.messages.unshift(data[0])
+            tmpD = data[0]
+            data = []
+            data[0] = tmpD
+          for d in data
+            if(begin == undefined)
+              $scope.lastEntryDate = d.publishDate
+            $q((success, error)->
+              post = new MessageObject(login.id, d.authorId, d.friendId)
+              post.setCipherBase64(login.privateKey, d.cipher)
+              post.setBodyBase64(d.body)
+              post.publishDate = d.publishDate
+              jsonBody = angular.fromJson(post.body)
+              d.body = jsonBody.message
+              lines = d.body.match(/[^\r\n]+/g)
+              d.bodies = []
+              if(lines != null )
+                for line in lines
+                  d.bodies.push({body: line})
+              else
+                d.bodies[0] = {body: d.body}
+              if(d.imageBody == 'image')
+                md = forge.md.sha256.create()
+                md.update("image", 'utf8')
+                sign = forge.util.encode64(login.privateKey.sign(md))
+                MessageImage.get(
+                  {
+                    userId: d.userId
+                    friendId: d.friendId
+                    publishDate: d.publishDate
+                    networkId: d.networkId
+                    sign: window.encodeURIComponent(sign)
+                  }
+                  (image) ->
+                    post.setImageBodyBase64(image.imageBody)
+                    imageJsonBody = angular.fromJson(post.imageBody)
+                    if(imageJsonBody.image != undefined )
+                      for p in $scope.messages
+                        if(post.publishDate == p.publishDate)
+                          p.image = "data:image/png;base64," + imageJsonBody.image
+                )
+
+
+              if(d.fileBody == 'file')
+                md = forge.md.sha256.create()
+                md.update("file", 'utf8')
+                sign = forge.util.encode64(login.privateKey.sign(md))
+                MessageFile.get(
+                  {
+                    userId: d.userId
+                    friendId: d.friendId
+                    publishDate: d.publishDate
+                    networkId: d.networkId
+                    sign: window.encodeURIComponent(sign)
+                  }
+                  (file) ->
+                    post.setFileBodyBase64(file.fileBody)
+                    fileJsonBody = angular.fromJson(post.fileBody)
+                    if(fileJsonBody.file != undefined )
+                      for p in $scope.messages
+                        if(post.publishDate == p.publishDate)
+                          p.fileShow = true
+                          p.fileName = fileJsonBody.fileName
+                          p.file = "data:application/octet-stream;base64," + fileJsonBody.file
+                )
+            )
+        (err) -> alert(err.data)
+      )
+
+    $scope.loadDialogs()
+    $scope.reloadPosts()
+
+
+    if(login != null)
+      $scope.messageShow = ''
+    else
+      $scope.messageShow = 'none'
+
+
+    $scope.add = () ->
+      f = document.getElementById('image').files[0]
+      if(f != undefined )
+        r = new FileReader()
+        r.onloadend = (e) ->
+          buffer = forge.util.createBuffer()
+          buffer.putBytes(e.target.result)
+          $scope.addFile(forge.util.encode64(buffer.getBytes()))
+        r.readAsBinaryString(f)
+      else
+        $scope.addFile()
+
+    $scope.addFile = (image) ->
+      f = document.getElementById('file').files[0]
+      if(f != undefined )
+        r = new FileReader()
+        r.onloadend = (e) ->
+          buffer = forge.util.createBuffer()
+          buffer.putBytes(e.target.result)
+          $scope.sendMessage(image, forge.util.encode64(buffer.getBytes()), f.name)
+        r.readAsBinaryString(f)
+      else
+        $scope.sendMessage(image)
+
+    $scope.sendMessage = (image, file, fileName) ->
+      document.getElementById('form').reset()
+      bodyObject = {message: $scope.message.body}
+      if(image != undefined )
+        imageJson = angular.toJson({image: image})
+      if(file != undefined )
+        fileJson = angular.toJson({file: file, fileName: fileName})
+      bodyJson = angular.toJson(bodyObject)
+      post = new MessageObject(login.id, login.id, $scope.messageToId, bodyJson, new Date().getTime(), undefined,
+        imageJson, fileJson)
+      cipherBase64 = post.getCipherBase64(login.publicKey)
+      bodyBase64 = post.getBodyBase64()
+      md = forge.md.sha256.create()
+      md.update(bodyBase64, 'utf8')
+      signature = forge.util.encode64(login.privateKey.sign(md))
+      imageBase64 = ''
+      fileBase64 = ''
+      if(imageJson != undefined )
+        imageBase64 = post.getImageBodyBase64()
+      if(fileJson != undefined )
+        fileBase64 = post.getFileBodyBase64()
+      MessageAdd.add(
+        {
+          sign: window.encodeURIComponent(signature)
+        }
+        {
+          userId: post.userId
+          authorId: post.authorId
+          networkId: network
+          friendId: post.friendId
+          publishDate: post.publishDate
+          body: bodyBase64
+          imageBody: imageBase64
+          fileBody: fileBase64
+          cipher: cipherBase64
+        }
+        (data) ->
+          api.messageToFriend(login.id, post.friendId, bodyJson, data.publishDate, imageJson, fileJson)
+          $scope.loadPosts(true)
+          $scope.message.body = ""
+          $scope.loadDialogs()
+
+        (err) -> alert err.data
+      )
 )
 
 
@@ -243,9 +681,12 @@ app.controller('StartCtrl', StartCtrl = ($scope, $timeout, UserAdd, Network) ->
             $scope.submitPressed = false
         )
       , 1000)
+    $scope.onLoadPageDisplay = '';
 )
 
-app.controller('FriendCtrl', FriendCtrl = ($scope, Friend) ->
+app.controller('FriendCtrl', FriendCtrl = ($scope) ->
+    $scope.login = login
+
     $scope.reloadFriends = () ->
       api.loadFriends().then((friends) -> $scope.friends = friends)
 
@@ -256,8 +697,15 @@ app.controller('FriendCtrl', FriendCtrl = ($scope, Friend) ->
       $scope.friendShow = 'none'
 )
 
-app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd) ->
-    $scope.post= {
+app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd, PostFile, PostImage, $timeout, $q) ->
+    $scope.login = login
+
+    $scope.showNext = false
+
+
+    api.postScope = $scope
+    api.mainScope.newPosts = false;
+    $scope.post = {
       body: ""
     }
     $scope.posts = []
@@ -271,29 +719,105 @@ app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd) ->
       $scope.loadPosts()
 
 
-    $scope.loadPosts = () ->
-      md = forge.md.sha1.create()
+    $scope.download = (file, fileName) ->
+      link = document.createElement("a");
+      link.download = fileName;
+      link.href = file;
+      link.click();
+
+    $scope.loadPosts = (begin) ->
+      if(begin == undefined)
+        lastEntryDate = $scope.lastEntryDate
+      else
+        lastEntryDate = 0
+      md = forge.md.sha256.create()
       md.update("posts", 'utf8')
       signature = forge.util.encode64(login.privateKey.sign(md))
       PostGet.get({
           userId: login.id
           networkId: network
           sign: window.encodeURIComponent(signature)
-          fromDate: $scope.lastEntryDate
+          fromDate: lastEntryDate
         }
         (data) ->
-          $scope.posts = [$scope.posts, data].reduce (a, b) ->
-            a.concat b
+          api.mainScope.newPosts = false
+          if(begin == undefined)
+            if(data.length == 10)
+              $scope.showNext = "true"
+            else
+              $scope.showNext = false
+            $scope.posts = [$scope.posts, data].reduce (a, b) ->
+              a.concat b
+          else
+            $scope.posts.unshift(data[0])
+            tmpD = data[0]
+            data = []
+            data[0] = tmpD
           for d in data
-            post = new PostObject(login.id, data.authorId)
-            post.setCipherBase64(login.privateKey, d.cipher)
-            post.setBodyBase64(d.body)
-            jsonBody = angular.fromJson(post.body)
-            d.body = jsonBody.message
-            if(jsonBody.image != undefined )
-              d.image="data:image/png;base64," + jsonBody.image
-            $scope.lastEntryDate = d.publishDate
+            if(begin == undefined)
+              $scope.lastEntryDate = d.publishDate
+            $q((success, error)->
+              post = new PostObject(login.id, d.authorId)
+              post.setCipherBase64(login.privateKey, d.cipher)
+              post.setBodyBase64(d.body)
+              post.publishDate = d.publishDate
+              jsonBody = angular.fromJson(post.body)
+              d.body = jsonBody.message
+              lines = d.body.match(/[^\r\n]+/g)
+              d.bodies = []
+              if(lines != null )
+                for line in lines
+                  d.bodies.push({body: line})
+              else
+                d.bodies[0] = {body: d.body}
+              if(d.imageBody == 'image')
+                md = forge.md.sha256.create()
+                md.update("image", 'utf8')
+                sign = forge.util.encode64(login.privateKey.sign(md))
+                PostImage.get(
+                  {
+                    userId: d.userId
+                    authorId: d.authorId
+                    publishDate: d.publishDate
+                    networkId: d.networkId
+                    sign: window.encodeURIComponent(sign)
+                  }
+                  (image) ->
+                    post.setImageBodyBase64(image.imageBody)
+                    imageJsonBody = angular.fromJson(post.imageBody)
+                    if(imageJsonBody.image != undefined )
+                      for p in $scope.posts
+                        if(post.publishDate == p.publishDate)
+                          p.image = "data:image/png;base64," + imageJsonBody.image
+                )
+
+
+              if(d.fileBody == 'file')
+                md = forge.md.sha256.create()
+                md.update("file", 'utf8')
+                sign = forge.util.encode64(login.privateKey.sign(md))
+                PostFile.get(
+                  {
+                    userId: d.userId
+                    authorId: d.authorId
+                    publishDate: d.publishDate
+                    networkId: d.networkId
+                    sign: window.encodeURIComponent(sign)
+                  }
+                  (file) ->
+                    post.setFileBodyBase64(file.fileBody)
+                    fileJsonBody = angular.fromJson(post.fileBody)
+                    if(fileJsonBody.file != undefined )
+                      for p in $scope.posts
+                        if(post.publishDate == p.publishDate)
+                          p.fileShow = true
+                          p.fileName = fileJsonBody.fileName
+                          p.file = "data:application/octet-stream;base64," + fileJsonBody.file
+                )
+            )
+        (err) -> alert(err.data)
       )
+
 
     if(login != null)
       $scope.reloadPosts()
@@ -301,36 +825,61 @@ app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd) ->
     else
       $scope.postShow = 'none'
 
+    if(!wsNotificationPosts)
+      wsNotification.onMessage((msg) ->
+        notification = JSON.parse(msg.data)
+        #console.log(notification)
+        if(notification.fromId == null && notification.toId != null)
+          api.postScope.loadPosts(true)
+      )
+      wsNotificationPosts = true
+
+
     $scope.add = () ->
+      f = document.getElementById('image').files[0]
+      if(f != undefined )
+        r = new FileReader()
+        r.onloadend = (e) ->
+          buffer = forge.util.createBuffer()
+          buffer.putBytes(e.target.result)
+          $scope.addFile(forge.util.encode64(buffer.getBytes()))
+        r.readAsBinaryString(f)
+      else
+        $scope.addFile()
+
+    $scope.addFile = (image) ->
       f = document.getElementById('file').files[0]
       if(f != undefined )
         r = new FileReader()
         r.onloadend = (e) ->
           buffer = forge.util.createBuffer()
           buffer.putBytes(e.target.result)
-          $scope.sendPost(forge.util.encode64(buffer.getBytes()))
+          $scope.sendPost(image, forge.util.encode64(buffer.getBytes()), f.name)
         r.readAsBinaryString(f)
       else
-        $scope.sendPost()
-    $scope.sendPost = (image) ->
-      if(image == undefined)
-        bodyJson = angular.toJson(
-          {message: $scope.post.body}
-        )
-      else
-        bodyJson = angular.toJson(
-          {
-            message: $scope.post.body
-            image: image
-          }
-        )
-      body = bodyJson
-      post = new PostObject(login.id, login.id, body, new Date().getTime())
+        $scope.sendPost(image)
+
+    $scope.sendPost = (image, file, fileName) ->
+      document.getElementById('form').reset()
+      bodyObject = {message: $scope.post.body}
+      if(image != undefined )
+        imageJson = angular.toJson({image: image})
+      if(file != undefined )
+        fileJson = angular.toJson({file: file, fileName: fileName})
+      #console.log(fileJson)
+      bodyJson = angular.toJson(bodyObject)
+      post = new PostObject(login.id, login.id, bodyJson, new Date().getTime(), undefined, imageJson, fileJson)
       cipherBase64 = post.getCipherBase64(login.publicKey)
       bodyBase64 = post.getBodyBase64()
-      md = forge.md.sha1.create()
+      md = forge.md.sha256.create()
       md.update(bodyBase64, 'utf8')
       signature = forge.util.encode64(login.privateKey.sign(md))
+      imageBase64 = ''
+      fileBase64 = ''
+      if(imageJson != undefined )
+        imageBase64 = post.getImageBodyBase64()
+      if(fileJson != undefined )
+        fileBase64 = post.getFileBodyBase64()
       PostAdd.add(
         {
           sign: window.encodeURIComponent(signature)
@@ -341,16 +890,18 @@ app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd) ->
           networkId: network
           publishDate: post.publishDate
           body: bodyBase64
+          imageBody: imageBase64
+          fileBody: fileBase64
           cipher: cipherBase64
         }
         (data) ->
           api.loadFriends().then((friends) ->
             for f in friends
               if(login.id != f.id)
-                api.postToFriend(login.id, f.id, body, data.publishDate)
+                api.postToFriend(login.id, f.id, bodyJson, data.publishDate, imageJson, fileJson)
           )
-          $scope.reloadPosts()
-          $scope.post= {
+          $scope.loadPosts(true)
+          $scope.post = {
             body: ""
           }
 
@@ -358,7 +909,11 @@ app.controller('PostCtrl', PostCtrl = ($scope, PostGet, PostAdd) ->
       )
 )
 
-app.controller('MainCtrl', MainCtrl = ($scope, $modal, $q, $location, UserGet, PostAdd, Friend, Network) ->
+app.controller('MainCtrl',
+  MainCtrl = ($scope, $modal, $q, $location, $websocket, UserGet, PostAdd, Friend, Network, MessageAdd) ->
+    $scope.newPosts = false
+    $scope.newMessages = false
+    $scope.newMembers = false
     parser = document.createElement('a');
     parser.href = window.location.href
     network = parser.pathname.replace(new RegExp("/", 'g'), "")
@@ -367,7 +922,8 @@ app.controller('MainCtrl', MainCtrl = ($scope, $modal, $q, $location, UserGet, P
     $scope.showAdmin = 'none';
 
     $scope.login = false
-    api = new ApiManager(Friend, UserGet, PostAdd, $q)
+    api = new ApiManager(Friend, UserGet, PostAdd, MessageAdd, $q)
+    api.mainScope = $scope
 
     $scope.register = () ->
       modalInstance = $modal.open({
@@ -389,6 +945,27 @@ app.controller('MainCtrl', MainCtrl = ($scope, $modal, $q, $location, UserGet, P
               $scope.menuShow = ''
               $scope.network = network
               login = data
+              md = forge.md.sha256.create()
+              md.update("notifications", 'utf8')
+              signature = forge.util.encode64(login.privateKey.sign(md))
+              #wsNotification = $websocket('ws://localhost:9000/websocket/changeevent/' + network + '/' + login.id + '/' + encodeURIComponent(signature))
+              wsNotification = $websocket('wss://protectednet.io/websocket/changeevent/' + network + '/' + login.id + '/' + encodeURIComponent(signature))
+              wsNotification.onMessage((msg) ->
+                notification = JSON.parse(msg.data)
+                if(notification.fromId == null && notification.toId == null)
+                  $scope.newMembers = true
+                if(notification.fromId == null && notification.toId != null)
+                  $scope.newPosts = true
+                if(notification.fromId != null && notification.toId != null)
+                  $scope.newMessages = true
+              )
+              wsNotification.onOpen(() ->
+                wsNotification.send(JSON.stringify({
+                  networkId: network
+                  fromId: ""
+                  toId: ""
+                }))
+              )
               api.loadFriends()
               Network.get(
                 {networkId: network}
@@ -402,13 +979,14 @@ app.controller('MainCtrl', MainCtrl = ($scope, $modal, $q, $location, UserGet, P
         (err)->
           alert err.data
       )
+    $scope.onLoadPageDisplay=''
 )
 
 app.controller('RegisterModalCtrl', RegisterModalCtrl = ($scope, UserAdd, UserGet, $modalInstance, $timeout) ->
     $scope.startGeneration = "none"
     $scope.user = {userName: "", userPassword: ""}
     $scope.submitPressed = false
-    $scope.userExists='none'
+    $scope.userExists = 'none'
 
     $scope.change = () ->
       UserGet.get(
@@ -417,9 +995,9 @@ app.controller('RegisterModalCtrl', RegisterModalCtrl = ($scope, UserAdd, UserGe
           networkId: network
         }
         (data) ->
-          $scope.userExists=''
+          $scope.userExists = ''
         (err) ->
-          $scope.userExists='none'
+          $scope.userExists = 'none'
       )
 
     $scope.ok = () ->
@@ -448,7 +1026,7 @@ app.controller('RegisterModalCtrl', RegisterModalCtrl = ($scope, UserAdd, UserGe
         )
       , 1000)
     $scope.close = () ->
-        $modalInstance.dismiss('cancel')
+      $modalInstance.dismiss('cancel')
 )
 
 
@@ -478,6 +1056,74 @@ app.factory 'UserAdd', [
 ]
 
 
+app.factory 'PostImage', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/postimage/:userId/:authorId/:publishDate/:networkId/:sign', {
+        userId: '@userId',
+        authorId: '@authorId',
+        publishDate: '@publishDate',
+        networkId: '@networkId',
+        sign: '@sign'
+      },
+      get:
+        method: 'GET'
+        cache: false
+        isArray: false
+
+]
+app.factory 'PostFile', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/postfile/:userId/:authorId/:publishDate/:networkId/:sign', {
+        userId: '@userId',
+        authorId: '@authorId',
+        publishDate: '@publishDate',
+        networkId: '@networkId',
+        sign: '@sign'
+      },
+      get:
+        method: 'GET'
+        cache: false
+        isArray: false
+
+]
+
+
+app.factory 'MessageImage', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/messageimage/:userId/:friendId/:publishDate/:networkId/:sign', {
+        userId: '@userId',
+        friendId: '@friendId',
+        publishDate: '@publishDate',
+        networkId: '@networkId',
+        sign: '@sign'
+      },
+      get:
+        method: 'GET'
+        cache: false
+        isArray: false
+
+]
+app.factory 'MessageFile', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/messagefile/:userId/:friendId/:publishDate/:networkId/:sign', {
+        userId: '@userId',
+        friendId: '@friendId',
+        publishDate: '@publishDate',
+        networkId: '@networkId',
+        sign: '@sign'
+      },
+      get:
+        method: 'GET'
+        cache: false
+        isArray: false
+
+]
+
+
 app.factory 'PostGet', [
   '$resource'
   ($resource) ->
@@ -497,6 +1143,43 @@ app.factory 'PostAdd', [
         method: 'POST'
         cache: false
         isArray: false
+
+]
+
+app.factory 'MessageAdd', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/message/:sign', {sign: '@sign'},
+      add:
+        method: 'POST'
+        cache: false
+        isArray: false
+]
+
+app.factory 'MessageGet', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/message/:userId/:networkId/:friendId/:sign', {
+        userId: '@userId',
+        networkId: '@networkId',
+        friendId: '@friendId',
+        sign: '@sign'
+      },
+      get:
+        method: 'GET'
+        cache: false
+        isArray: true
+
+]
+
+app.factory 'Dialogs', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/dialog/:userId/:networkId/:sign', {userId: '@userId', networkId: '@networkId', sign: '@sign'},
+      get:
+        method: 'GET'
+        cache: false
+        isArray: true
 
 ]
 
@@ -521,6 +1204,16 @@ app.factory 'Network', [
 
 ]
 
+app.factory 'Bitcoin', [
+  '$resource'
+  ($resource) ->
+    $resource '/rest/bitcoin', {},
+      get:
+        method: 'GET'
+        cache: false
+        isArray: false
+
+]
 
 app.config([
   '$routeProvider',
@@ -542,6 +1235,10 @@ app.config([
         controller: 'AdminCtrl'
       })
     .when('/messages', {
+        templateUrl: 'part/messages',
+        controller: 'MessageCtrl'
+      })
+    .when('/messages/:toId', {
         templateUrl: 'part/messages',
         controller: 'MessageCtrl'
       })

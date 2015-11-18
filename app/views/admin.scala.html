@@ -2,33 +2,52 @@
 
 
 <!DOCTYPE html>
-
-<!-- 
-# Author Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+<!--
+    #    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com
+    #
+    #     This program is free software: you can redistribute it and/or  modify
+    #    it under the terms of the GNU Affero General Public License, version 3,
+    #    as published by the Free Software Foundation.
+    #
+    #    This program is distributed in the hope that it will be useful,
+    #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    #    GNU Affero General Public License for more details.
+    #
+    #    You should have received a copy of the GNU Affero General Public License
+    #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
-
 <div>
     <div class="panel panel-default" >
         <div class="panel-heading">
             <h3 class="panel-title">@Messages("admin.title")</h3>
         </div>
         <div class="panel-body">
+            <!--
+            <h3>@Messages("network.block.date") <span>{{network.blockDate|date:'yyyy-MM-dd HH:mm:ss'}}</span>  <button type="button" class="btn btn-success" ng-click="pay()">@Messages("pay.1.months")</button></h3>
+            -->
+            <div class="panel panel-default" >
+                <div class="panel-heading">
+                    <h3 class="panel-title">@Messages("members.title")</h3>
+                </div>
+                <div class="panel-body">
 
-            <table class="table table-striped">
-                <tbody>
-                    <tr ng-repeat="f in friends | orderBy:'+isActive' ">
-                        <td>{{f.id}}</td>
-                        <td>
-                            <div class="form-group">
-                                <button ng-hide="f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="activate(f)">@Messages("admin.activate")</button>
-                                <button ng-hide="!f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="deactivate(f)">@Messages("admin.deactivate")</button>
-                            </div>
+                    <table class="table table-striped">
+                        <tbody>
+                            <tr ng-repeat="f in friends | orderBy:'+isActive' ">
+                                <td>{{f.id}}</td>
+                                <td>
+                                    <div class="form-group">
+                                        <button ng-if="login.id != f.id" ng-hide="f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="activate(f)">@Messages("admin.activate")</button>
+                                        <button ng-if="login.id != f.id" ng-hide="!f.isActive" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="deactivate(f)">@Messages("admin.deactivate")</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>

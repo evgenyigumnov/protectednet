@@ -1,0 +1,25 @@
+@()(implicit messages: Messages)
+
+
+<!DOCTYPE html>
+
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true" ng-click="close()">×</button>
+    <h3 class="modal-title">@Messages("pay.1.months")</h3>
+</div>
+<div class="modal-body">
+
+    <span ng-hide="hide">@Messages("bitcoin.wait")</span>
+
+    <div ng-hide="!hide">
+        <p>
+            <span>@Messages("bitcoin.send.to")</span> {{address}}
+        </p>
+        <p>
+            <span>@Messages("bitcoin.warning")</span>
+        </p>
+        <p>
+            <span>@Messages("bitcoin.timeline")</span>
+        </p>
+    </div>
+</div>

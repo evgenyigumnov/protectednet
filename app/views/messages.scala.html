@@ -2,4 +2,97 @@
 
 
 <!DOCTYPE html>
+<!--
+    #    Copyright (C) 2015 Evgeny Igumnov http://evgeny.igumnov.com
+    #
+    #     This program is free software: you can redistribute it and/or  modify
+    #    it under the terms of the GNU Affero General Public License, version 3,
+    #    as published by the Free Software Foundation.
+    #
+    #    This program is distributed in the hope that it will be useful,
+    #    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    #    GNU Affero General Public License for more details.
+    #
+    #    You should have received a copy of the GNU Affero General Public License
+    #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
 
+<div style="display : none ;" ng-style="{'display':messageShow}">
+    <div class="panel panel-default" >
+        <div class="panel-heading">
+            <h3 class="panel-title">@Messages("messages.title")</h3>
+        </div>
+        <div class="panel-body">
+
+            <div class="row">
+                <div class="col-xs-2 col-sm-2 col-md-2">
+
+                    <table class="table table-striped">
+                        <tbody>
+                            <tr ng-repeat="dialog in dialogs">
+                                <td><a href="#/messages/{{dialog.friendId}}">{{dialog.friendId}} <span ng-show="dialog.unread" class="badge">+</span></a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+                <div class="col-xs-8 col-sm-8 col-md-8">
+
+                    <div ng-show="!messageToId">@Messages("no.messages")</div>
+                    <div ng-show="messageToId">
+
+                        <tabset>
+                            <tab heading="{{messageToId}}"></tab>
+                        </tabset>
+                        <form ng-model="post" id="form" name="form">
+
+
+                            <div class="form-group">
+                                <textarea ng-model="message.body" class="form-control" ng-change="change()" value="" placeholder="@Messages("message.add.body")"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <button ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="add()">@Messages("message.send")</button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    @Messages("attache.image") <input id="image" name="image" ng-model="image" type="file">
+                                </div>
+                                <div class="col-md-4">
+                                    @Messages("attache.file") <input id="file" name="file" ng-model="file" type="file">
+                                </div>
+                            </div>
+                        </form>
+
+                        <table class="table table-striped">
+                            <tbody>
+                                <tr ng-repeat="m in messages">
+                                    <td>
+                                        <u>{{m.authorId}}</u>
+                                        <i class="pull-right">
+                                            {{m.publishDate|date:'yyyy-MM-dd HH:mm:ss'}}</i>
+
+                                        <span ng-repeat="b in m.bodies"><br>{{b.body}}</span>
+                                        <div ng-show="m.image != 'undefined'"><img style="max-width: 100%;height: auto;"  data-ng-src="{{m.image}}"/></div>
+                                        <div ng-show="m.fileShow">
+                                            <a ng-click="download(m.file, m.fileName)">@Messages("download")
+                                                : {{m.fileName}}</a>
+                                        </div>
+
+
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button ng-show="showNext" ng-class="{'disabled':sendPressed==true}" type="button" class="btn btn-primary" ng-click="loadOlder()">
+                            v</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
