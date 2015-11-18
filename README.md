@@ -1,5 +1,5 @@
 # protectednet
 
-Author: Evgeny Igumnov igumnov@gmail.com Under GPL v2 http://www.gnu.org/licenses/
+Author: Evgeny Igumnov igumnov@gmail.com Under AGPL v3 http://www.gnu.org/licenses/
 
-First version of https://protectednet.io/
+Second version of https://protectednet.io/
