@@ -6,4 +6,4 @@ Under AGPL v3 http://www.gnu.org/licenses/
 
 Second version of https://protectednet.io/
 
-ProtectedNet web-service written on Scala under Playframework with Cassandra database and AngularJS, Bootstrap and CoffeeScript fronted
+ProtectedNet web-service written on Scala under Play Framework with Cassandra database and AngularJS, Bootstrap and CoffeeScript fronted
